@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Group Expense Splitter - Smart offline trip expense sharing with IndexedDB, personal spend tracking, and settlement minimization.">
+  <title>Group Expense Splitter — College Trip Edition</title>
+  
+  <!-- External Modular Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- ============================================================
+         1. HEADER WITH ACTION BUTTONS
+         ============================================================ -->
+    <header class="header-card">
+      <div class="brand-group">
+        <div class="brand-icon" aria-hidden="true">🎒</div>
+        <div class="brand-text">
+          <h1>Group Expense Splitter</h1>
+          <div class="tagline">
+            Split trip costs, keep friendships.
+            <span class="db-badge" title="Data stored in browser IndexedDB database">
+              <span>💾</span> IndexedDB Active
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-share-whatsapp" class="btn btn-whatsapp" title="Share settlement summary to WhatsApp group">
+          <span>📲</span> Share on WhatsApp
+        </button>
+        <button id="btn-load-demo" class="btn btn-outline-white" title="Load sample trip data with Rahul, Aman, Priya">
+          <span>✨</span> Load Demo Data
+        </button>
+        <button id="btn-download-summary" class="btn btn-outline-white" title="Download text report of all trip expenses">
+          <span>📄</span> Download Summary (.txt)
+        </button>
+        <button id="btn-export-csv" class="btn btn-outline-white" title="Export expenses and balances as CSV spreadsheet">
+          <span>📊</span> Export CSV
+        </button>
+        <button id="btn-clear-all" class="btn btn-danger-outline" title="Clear all members and expenses">
+          <span>🗑️</span> Clear All
+        </button>
+      </div>
+    </header>
+
+    <!-- ============================================================
+         TRIP BUDGET TRACKER & PROGRESS BAR
+         ============================================================ -->
+    <section class="budget-card" aria-label="Trip Budget Tracker">
+      <div class="budget-top-row">
+        <div class="budget-title">
+          <span>🎯</span> Trip Budget Tracker
+        </div>
+        <div class="budget-input-group">
+          <label for="input-trip-budget">Trip Budget Goal (₹):</label>
+          <input type="number" id="input-trip-budget" min="100" step="500" value="15000" title="Planned budget target. You can change this amount anytime!">
+        </div>
+      </div>
+
+      <div class="budget-progress-track">
+        <div id="budget-progress-bar" class="budget-progress-fill" style="width: 0%;"></div>
+      </div>
+
+      <div class="budget-status-row">
+        <span id="budget-spent-text">Spent: ₹0.00 / ₹15,000.00 (0%)</span>
+        <span id="budget-remaining-text" style="color: var(--primary);">Remaining: ₹15,000.00</span>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         2. SUMMARY CARDS
+         ============================================================ -->
+    <section class="summary-grid" aria-label="Trip Summary Overview">
+      <div class="metric-card">
+        <div class="metric-icon-wrap icon-teal" aria-hidden="true">💰</div>
+        <div class="metric-details">
+          <span class="metric-label">Total Expense</span>
+          <span id="metric-total-expense" class="metric-value">₹0.00</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon-wrap icon-orange" aria-hidden="true">🤝</div>
+        <div class="metric-details">
+          <span class="metric-label">Equal Share / Person</span>
+          <span id="metric-equal-share" class="metric-value">₹0.00</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon-wrap icon-slate" aria-hidden="true">👥</div>
+        <div class="metric-details">
+          <span class="metric-label">Trip Members</span>
+          <span id="metric-member-count" class="metric-value">0</span>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon-wrap icon-green" aria-hidden="true">⚡</div>
+        <div class="metric-details">
+          <span class="metric-label">Pending Settlements</span>
+          <span id="metric-pending-settlements" class="metric-value">0</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================
+         MAIN TWO-COLUMN WORKSPACE
+         Left: Members & Expenses | Right: Balances, Settlements, Chart, How-It-Works
+         ============================================================ -->
+    <main class="main-columns">
+
+      <!-- LEFT COLUMN -->
+      <div class="column">
+
+        <!-- 3. MEMBERS SECTION -->
+        <section class="panel" aria-labelledby="members-heading">
+          <div class="panel-header">
+            <h2 id="members-heading" class="panel-title">
+              <span>👥</span> Trip Members
+              <span id="badge-member-count" class="badge-count">0</span>
+            </h2>
+          </div>
+
+          <!-- Add Member Form -->
+          <form id="form-add-member" novalidate>
+            <div class="member-input-grid">
+              <div class="member-input-row">
+                <input
+                  type="text"
+                  id="input-member-name"
+                  class="input-field"
+                  placeholder="Friend's Name (e.g. Rahul)"
+                  maxlength="30"
+                  autocomplete="off"
+                  aria-label="New member name"
+                  aria-describedby="member-name-error"
+                >
+                <input
+                  type="text"
+                  id="input-member-upi"
+                  class="input-field"
+                  placeholder="UPI ID (e.g. rahul@upi - optional)"
+                  maxlength="40"
+                  aria-label="Member UPI ID"
+                >
+                <button type="submit" id="btn-add-member" class="btn btn-primary">
+                  Add Friend
+                </button>
+              </div>
+            </div>
+            <div id="member-name-error" class="error-msg" aria-live="polite"></div>
+          </form>
+
+          <!-- Members List -->
+          <ul id="member-list" class="member-list" aria-label="List of members"></ul>
+        </section>
+
+        <!-- 4. ADD / EDIT EXPENSE FORM -->
+        <section class="panel" aria-labelledby="expense-form-heading">
+          <div class="panel-header">
+            <h2 id="expense-form-heading" class="panel-title">
+              <span id="expense-form-icon">➕</span>
+              <span id="expense-form-title-text">Add Expense</span>
+            </h2>
+            <button type="button" id="btn-cancel-edit-expense" class="btn btn-sm btn-secondary" style="display: none;">
+              Cancel
+            </button>
+          </div>
+
+          <!-- Disabled hint banner when no members exist -->
+          <div id="expense-form-hint" class="form-disabled-banner" style="display: none;">
+            <span>ℹ️</span> Add at least one friend above to record trip expenses.
+          </div>
+
+          <form id="form-expense" novalidate>
+            <input type="hidden" id="edit-expense-id" value="">
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="select-expense-payer">Who Paid? *</label>
+                <select id="select-expense-payer" class="input-field" aria-describedby="expense-payer-error">
+                  <option value="">Select friend...</option>
+                </select>
+                <div id="expense-payer-error" class="error-msg" aria-live="polite"></div>
+              </div>
+
+              <div class="form-group">
+                <label for="input-expense-amount">Amount (in ₹) *</label>
+                <input
+                  type="number"
+                  id="input-expense-amount"
+                  class="input-field"
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0.01"
+                  max="1000000"
+                  aria-describedby="expense-amount-error"
+                >
+                <div id="expense-amount-error" class="error-msg" aria-live="polite"></div>
+              </div>
+            </div>
+
+            <!-- HOW TO SPLIT (ALL / SINGLE BENEFICIARY / CUSTOM SUBSET) -->
+            <div class="split-config-card">
+              <label>How should this expense be split?</label>
+              <div class="split-radio-group">
+                <label class="split-radio-label">
+                  <input type="radio" name="expense-split-type" value="all" checked>
+                  👥 Split Equally (All Friends)
+                </label>
+                <label class="split-radio-label">
+                  <input type="radio" name="expense-split-type" value="single">
+                  🎯 Paid For Someone Specific (1-on-1 Personal Spend)
+                </label>
+                <label class="split-radio-label">
+                  <input type="radio" name="expense-split-type" value="custom">
+                  ☑️ Selected Friends Only
+                </label>
+              </div>
+
+              <!-- Single Beneficiary Dropdown -->
+              <div id="box-split-single" style="display: none; margin-top: 0.5rem;">
+                <label for="select-single-beneficiary">Paid entirely on behalf of whom? *</label>
+                <select id="select-single-beneficiary" class="input-field" style="margin-top: 0.25rem;">
+                  <option value="">Select friend who incurred this spend...</option>
+                </select>
+                <div id="expense-beneficiary-error" class="error-msg" aria-live="polite"></div>
+              </div>
+
+              <!-- Custom Friends Checkboxes -->
+              <div id="box-split-custom" style="display: none; margin-top: 0.5rem;">
+                <label>Select friends who shared this expense: *</label>
+                <div id="custom-members-checkboxes" class="custom-members-checklist" style="margin-top: 0.25rem;">
+                  <!-- Checkboxes populated dynamically -->
+                </div>
+                <div id="expense-custom-error" class="error-msg" aria-live="polite"></div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="select-expense-category">Category</label>
+                <select id="select-expense-category" class="input-field">
+                  <option value="Food">🍔 Food</option>
+                  <option value="Travel">🚕 Travel</option>
+                  <option value="Hotel">🏨 Hotel</option>
+                  <option value="Shopping">🛍️ Shopping</option>
+                  <option value="Other">📦 Other</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="input-expense-date">Date</label>
+                <input type="date" id="input-expense-date" class="input-field">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="input-expense-description">Description (optional)</label>
+              <input
+                type="text"
+                id="input-expense-description"
+                class="input-field"
+                placeholder="e.g. Resort booking, Highway Dhaba lunch, Priya's jacket"
+                maxlength="60"
+              >
+            </div>
+
+            <button type="submit" id="btn-submit-expense" class="btn btn-accent" style="width: 100%;">
+              Save Expense
+            </button>
+          </form>
+        </section>
+
+        <!-- 5. EXPENSE LIST WITH SEARCH & FILTERS -->
+        <section class="panel" aria-labelledby="expenses-heading">
+          <div class="panel-header">
+            <h2 id="expenses-heading" class="panel-title">
+              <span>🧾</span> Expenses History
+              <span id="badge-expense-count" class="badge-count">0</span>
+            </h2>
+          </div>
+
+          <!-- Instant Search & Category/Payer Filter Bar -->
+          <div class="filter-bar">
+            <input
+              type="text"
+              id="filter-search-text"
+              class="input-field"
+              placeholder="🔍 Search expenses..."
+              style="min-height: 38px; padding: 0.4rem 0.75rem;"
+            >
+            <select id="filter-category" class="input-field" style="min-height: 38px; padding: 0.4rem 0.75rem;">
+              <option value="">All Categories</option>
+              <option value="Food">🍔 Food</option>
+              <option value="Travel">🚕 Travel</option>
+              <option value="Hotel">🏨 Hotel</option>
+              <option value="Shopping">🛍️ Shopping</option>
+              <option value="Other">📦 Other</option>
+            </select>
+            <select id="filter-payer" class="input-field" style="min-height: 38px; padding: 0.4rem 0.75rem;">
+              <option value="">All Payers</option>
+            </select>
+          </div>
+
+          <div class="filter-count-row">
+            <span id="filter-status-text">Showing all expenses</span>
+            <button type="button" id="btn-reset-filters" class="btn-reset-filters" style="display: none;">Reset Filters</button>
+          </div>
+
+          <ul id="expense-list" class="expense-list" aria-label="Trip expenses history"></ul>
+        </section>
+
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="column">
+
+        <!-- 6. MEMBER BALANCE TABLE -->
+        <section class="panel" aria-labelledby="balances-heading">
+          <div class="panel-header">
+            <h2 id="balances-heading" class="panel-title">
+              <span>⚖️</span> Member Balances
+            </h2>
+          </div>
+
+          <div class="table-container">
+            <table class="balance-table" aria-label="Member Fair Share and Balances">
+              <thead>
+                <tr>
+                  <th scope="col">Friend</th>
+                  <th scope="col">Paid</th>
+                  <th scope="col">Fair Share</th>
+                  <th scope="col">Net Balance</th>
+                </tr>
+              </thead>
+              <tbody id="balance-table-body">
+                <!-- Dynamically rendered -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- 7. SETTLEMENTS (WHO PAYS WHOM) -->
+        <section class="panel" aria-labelledby="settlements-heading">
+          <div class="panel-header">
+            <h2 id="settlements-heading" class="panel-title">
+              <span>🤝</span> Suggested Settlements
+            </h2>
+          </div>
+
+          <ul id="settlement-list" class="settlement-list" aria-label="List of payments to settle up"></ul>
+        </section>
+
+        <!-- 8. CHART (SPENDING BREAKDOWN) -->
+        <section class="panel" aria-labelledby="chart-heading">
+          <div class="panel-header">
+            <h2 id="chart-heading" class="panel-title">
+              <span>📊</span> Visual Breakdown
+            </h2>
+
+            <div class="chart-controls" role="tablist" aria-label="Chart mode toggle">
+              <button
+                type="button"
+                id="btn-chart-category"
+                class="chart-tab-btn active"
+                role="tab"
+                aria-selected="true"
+              >
+                By Category
+              </button>
+              <button
+                type="button"
+                id="btn-chart-member"
+                class="chart-tab-btn"
+                role="tab"
+                aria-selected="false"
+              >
+                By Member
+              </button>
+            </div>
+          </div>
+
+          <div id="chart-container" class="chart-box">
+            <!-- Inline SVG chart dynamically generated -->
+          </div>
+        </section>
+
+        <!-- 9. HOW DOES THIS WORK? (COLLAPSIBLE CARD) -->
+        <section class="how-it-works-card">
+          <details id="how-it-works-details">
+            <summary class="how-it-works-summary">
+              <span>💡</span> How does this work? (Algorithm Explained)
+            </summary>
+            <div class="how-it-works-content">
+              <p>
+                First, calculate what each person should pay equally. Then compare that with what each person actually paid. People who paid extra receive money, and people who paid less send money. Match people who owe money with people who should receive money until all balances become zero.
+              </p>
+              <div class="how-box-example">
+                <strong>Example with Rahul, Aman, and Priya:</strong>
+                <ul>
+                  <li><strong>Total Trip Expense:</strong> ₹900 (Rahul paid ₹600 for Hotel, Aman paid ₹300 for Food, Priya paid ₹0).</li>
+                  <li><strong>Equal Share:</strong> ₹900 ÷ 3 friends = <strong>₹300 each</strong>.</li>
+                  <li><strong>Rahul:</strong> Paid ₹600 − Share ₹300 = <strong>+₹300 (receives money)</strong>.</li>
+                  <li><strong>Aman:</strong> Paid ₹300 − Share ₹300 = <strong>₹0 (all settled)</strong>.</li>
+                  <li><strong>Priya:</strong> Paid ₹0 − Share ₹300 = <strong>−₹300 (owes money)</strong>.</li>
+                  <li><strong>Greedy Match:</strong> Priya pays Rahul ₹300.00 directly. Entire trip is settled with just <strong>1 transaction</strong>!</li>
+                </ul>
+              </div>
+              <div class="how-box-example" style="margin-top: 0.5rem; background: #fff7ed; border-color: #fed7aa;">
+                <strong>What if someone pays for another person's personal shopping?</strong>
+                <p style="margin-top: 0.35rem;">
+                  When Rahul pays ₹500 for Priya's shopping, the app assigns 100% of the ₹500 share to Priya. Rahul receives +₹500 in paid amount, Priya incurs -₹500 in share, and Aman is untouched (₹0). The algorithm automatically pairs Priya directly with Rahul!
+                </p>
+              </div>
+            </div>
+          </details>
+        </section>
+
+      </div>
+
+    </main>
+  </div>
+
+
+  <!-- ============================================================
+       CONFIRMATION MODAL
+       ============================================================ */
+  -->
+  <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span id="modal-icon" style="font-size: 1.5rem;">⚠️</span>
+        <h3 id="modal-title" class="modal-title">Confirmation</h3>
+      </div>
+      <p id="modal-desc" class="modal-body"></p>
+      <div class="modal-actions">
+        <button type="button" id="btn-modal-cancel" class="btn btn-secondary">Cancel</button>
+        <button type="button" id="btn-modal-confirm" class="btn btn-danger">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast-box" role="status" aria-live="polite"></div>
+
+
+  <!-- Application Logic (Single Comprehensive Script with Detailed Comments) -->
+  <script src="js/app.js"></script>
+</body>
+</html>
