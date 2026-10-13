@@ -1,0 +1,76 @@
+You are a senior front-end developer and a patient teacher. Build a complete, polished, beginner-friendly single-page web app called "Group Expense Splitter" for a group of friends on a college trip. It will be shown in a live college hackathon demo.
+
+OUTPUT FORMAT
+- Give me ONE complete file named index.html with all CSS in a <style> tag and all JavaScript in a <script> tag. Do not give partial snippets and do not say "rest of the code remains the same".
+- Use only plain HTML, CSS and vanilla JavaScript. No frameworks, no build step, no external libraries, no CDN links, because it must work offline on any laptop. Draw the chart yourself using inline SVG or <canvas>.
+- Add clear comments above every important function explaining what it does and why, in simple language. Use section banners such as: STATE, STORAGE, MONEY HELPERS, CALCULATIONS, SETTLEMENT ALGORITHM, RENDERING, EVENT HANDLERS.
+- Keep the code readable: small functions, meaningful names, no clever tricks.
+
+DATA MODEL (keep it simple)
+- members: [{ id, name }]
+- expenses: [{ id, payerId, amount, description, category, date }]
+- paidSettlements: an object mapping a settlement key to true
+- Reference members by id, never by name, so renaming a member never breaks expenses. Generate ids with Date.now() plus a random suffix.
+- Store money internally as integer paise (amount * 100, rounded). Convert to rupees only when displaying. This avoids floating-point errors.
+
+FEATURES
+1. Members
+   - Name input with Add button (Enter key also adds).
+   - List of members with Edit and Delete buttons (inline edit is fine).
+   - Deleting a member who has expenses must show a confirmation explaining that their expenses will also be deleted.
+   - Validation: name cannot be empty or only spaces, must be unique (case-insensitive), max 30 characters.
+
+2. Expenses
+   - Form fields: Who paid (dropdown of members, required), Amount in rupees (required), Description (optional), Category (Food, Travel, Hotel, Shopping, Other), Date (optional, default today).
+   - Expense list showing payer, amount, category, date and description, with Edit and Delete buttons. Editing should load the expense back into the form, with the button changing to "Update Expense" and a Cancel option.
+   - Validation: a payer must be selected; the amount must be a number greater than 0 (reject empty, zero, negative and non-numeric values); round to 2 decimals; a sensible maximum of 10,00,000.
+   - Disable the form and show a friendly hint if there are no members yet.
+
+3. Calculations (write these as pure functions that take data and return results, so they are easy to test and explain)
+   - totalExpense = sum of all expenses.
+   - Equal share per person = total / number of members, computed in paise. If the total does not divide evenly, give the extra paise one by one to the first few members, so that all balances always add up to exactly zero.
+   - For each member compute: Total Paid, Fair Share, Balance = Paid - Share.
+   - Positive balance means "gets back" money. Negative balance means "owes" money. Zero means "all settled". Show these labels in words, not only as colors.
+   - A member who paid 0 must work correctly.
+
+4. Settlement algorithm (transaction-minimizing greedy)
+   - Build a creditors list (balance > 0) and a debtors list (balance < 0), both sorted from largest to smallest amount.
+   - Repeatedly match the largest debtor with the largest creditor. The payment is the smaller of the two amounts. Subtract it from both. Remove anyone who reaches zero. Repeat until both lists are empty.
+   - This gives at most (members - 1) payments.
+   - Output sentences like "Priya pays Rahul ₹300.00".
+   - Show every settlement in a list with a "Mark as Paid" button. Paid items should look visibly done (strikethrough or a green tick) and be undoable.
+   - Give each settlement a key like fromId + "->" + toId + ":" + paise. If expenses change and a settlement no longer exists, its paid flag is simply ignored.
+   - If everything is balanced, show "Everyone is settled up 🎉".
+   - Add a short collapsible "How does this work?" card in the UI with this plain-language explanation: "First, calculate what each person should pay equally. Then compare that with what each person actually paid. People who paid extra receive money, and people who paid less send money. Match people who owe money with people who should receive money until all balances become zero." Include the Rahul / Aman / Priya example in it.
+
+5. Dashboard
+   - Four summary cards: Total Expense, Equal Share per Person, Number of Members, Pending Settlements (settlements not yet marked paid).
+   - Member-wise table with columns Name, Paid, Share, Balance. Balance text is green with "gets ₹X" when positive, red/orange with "owes ₹X" when negative, grey with "settled" when zero.
+   - A simple chart with a toggle between "By Category" (spending per category) and "By Member" (contribution per member). Include a legend and value labels. Show a friendly "No data yet" message when empty.
+
+6. Extra features
+   - "Load Demo Data" button. It must create exactly: members Rahul, Aman, Priya; expenses Rahul paid ₹600 (Hotel), Aman paid ₹300 (Food); Priya paid nothing. The dashboard must then show Total = ₹900, Equal Share = ₹300, and the settlement "Priya pays Rahul ₹300.00". If data already exists, ask for confirmation before replacing it.
+   - "Clear All Data" button with a confirmation dialog (a small custom modal is preferred over alert/confirm).
+   - Save everything to localStorage after every change and load it on page start. Wrap the load in try/catch and fall back to empty data if the stored data is corrupt.
+   - "Download Summary" button that downloads a readable .txt file (using Blob) containing the date, total, equal share, member table, expense list and settlement instructions. Optionally add a second button for CSV.
+
+EDGE CASES TO HANDLE
+- No members and no expenses: show helpful empty states with a clear next step ("Add your first friend to get started"), and no errors or NaN anywhere.
+- Members exist but no expenses: all values show ₹0.00 and settlements show "No expenses yet".
+- Only one member: share equals the total, no settlements.
+- Show validation errors as inline messages near the field in red (never silent failure), and clear them when the user corrects the input. Use aria-live so they are announced.
+- Escape user text safely by using textContent, never innerHTML with user input.
+- Format all currency as ₹ with exactly 2 decimals using Indian digit grouping, for example toLocaleString("en-IN").
+
+DESIGN
+- Clean, modern, college-trip theme: a teal and sunset-orange palette, soft cards with rounded corners and light shadows, a friendly header with a 🎒 or 🚌 emoji and the tagline "Split trip costs, keep friendships."
+- Green = receiving money, red/orange = owing money, applied consistently in the table, settlements and badges.
+- Fully responsive: a two-column layout on desktop and a single-column stacked layout on mobile. Tables must stay usable on small screens (horizontal scroll or card layout). Tap targets at least 44px high.
+- Use CSS variables for colors, a system font stack, subtle hover and focus states, and visible keyboard focus.
+- Sections in this order: Header with action buttons, Summary cards, Members, Add Expense, Expense list, Member balance table, Settlements, Chart, How it works.
+
+QUALITY CHECKS
+- Add a function runSelfTests() that I can call from the browser console. It should verify the demo data gives total 900, share 300, balances +300/0/-300 and one settlement (Priya to Rahul, 300). It should also verify an uneven case, such as 100 split among 3 people, where the balances sum to exactly 0. Log PASS or FAIL for each test.
+- Before finishing, re-read your code and fix any bug, undefined variable or mismatched id.
+
+After the code, add a short section (under 150 words) in very simple language explaining the settlement algorithm so I can explain it to hackathon judges, plus 3 likely judge questions with one-line answers.
